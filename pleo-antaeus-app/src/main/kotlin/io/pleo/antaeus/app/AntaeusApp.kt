@@ -7,14 +7,18 @@
 
 package io.pleo.antaeus.app
 
+import dev.inmo.krontab.doInfinity
 import getPaymentProvider
-import io.pleo.antaeus.core.services.BillingService
 import io.pleo.antaeus.core.services.CustomerService
 import io.pleo.antaeus.core.services.InvoiceService
+import io.pleo.antaeus.core.services.publisher.activeMQPublisher
+import io.pleo.antaeus.core.services.subscriber.activeMQSubscriber
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
 import io.pleo.antaeus.rest.AntaeusRest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
@@ -25,7 +29,7 @@ import setupInitialData
 import java.io.File
 import java.sql.Connection
 
-fun main() {
+fun main() = runBlocking {
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
 
@@ -60,8 +64,14 @@ fun main() {
     val invoiceService = InvoiceService(dal = dal)
     val customerService = CustomerService(dal = dal)
 
-    // This is _your_ billing service to be included where you see fit
-    val billingService = BillingService(paymentProvider = paymentProvider)
+    //Adding Kotlin Coroutine and implementing the kotlin scheduler at 1st of every month
+    val job = launch{
+      //Testing purpose every 2mins
+        doInfinity("* /2 * * *") {
+            activeMQPublisher(invoiceService = invoiceService)
+            activeMQSubscriber(paymentProvider = paymentProvider, invoiceService = invoiceService)
+        }
+    }
 
     // Create REST web service
     AntaeusRest(
