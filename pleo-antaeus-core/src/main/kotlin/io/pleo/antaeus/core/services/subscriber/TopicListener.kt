@@ -54,7 +54,13 @@ class TopicListener(private val paymentProvider: PaymentProvider, val invoiceSer
                 if (update) {
                     message.jmsExpiration = 60000 //1 hour
                 } else {
-                    //keep the unprocessed messages in the topic for further analysis logic
+                    //keep the uncharged invoice messages in the topic for further analysis logic
+                    //My solution:
+                    //when the scheduler runs the next time, which is after one hour, it will pull the pending messages again from the database.
+                    //now when the chargeInvoice returns turn -> compare the invoiceID & customerID with the List of unprocessed messages stored
+                    //If they are same -> purge
+                    //If not they need to analysed further or for wait for the next schedule run
+                    //There is no need to browse the unprocessed messages as in queue, In topics you always have a copy of the messages.
                 }
             }
             logger.info { "Inside TopicListener: onMessage listOfInvoiceToUpdate = $listOfInvoiceToUpdate" }
