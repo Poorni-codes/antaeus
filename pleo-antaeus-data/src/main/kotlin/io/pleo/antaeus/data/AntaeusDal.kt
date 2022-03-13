@@ -78,12 +78,14 @@ class AntaeusDal(private val db: Database) {
         return fetchCustomer(id)
     }
 
-    fun updateInvoiceToPaid(id: Int): Invoice? {
+    fun updateInvoiceStatus(id: Int): Boolean {
+        var statusUpdate : Boolean = false;
         transaction(db) {
             InvoiceTable.update({ InvoiceTable.id eq id }) {
-                it[status] = "PAID"
+                it[status] = InvoiceStatus.PAID.toString()
+                statusUpdate = true
             }
         }
-        return fetchInvoice(id)
+        return statusUpdate
     }
 }

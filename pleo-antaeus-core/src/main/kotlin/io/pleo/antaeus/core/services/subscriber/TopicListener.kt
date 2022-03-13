@@ -11,35 +11,45 @@ import java.math.BigDecimal
 import javax.jms.JMSException
 import javax.jms.ObjectMessage
 
-class TopicListener(s: String, val paymentProvider: PaymentProvider, val invoiceService: InvoiceService) :
+class TopicListener(private val paymentProvider: PaymentProvider, val invoiceService: InvoiceService) :
     MessageListener {
 
     private val logger = KotlinLogging.logger {}
-    var listOfToUpdate: MutableList<Invoice> = mutableListOf<Invoice>()
+    var listOfInvoiceToUpdate: MutableList<Invoice> = mutableListOf<Invoice>()
 
     override fun onMessage(message: Message?) {
         try {
 
             val mapMessage = message as ObjectMessage
             val invoiceMessage: Invoice = mapMessage.getObject() as Invoice
-            logger.info { "This is info log : Inside subscriber3 : ${invoiceMessage.toString()}" }
 
             //Checking the amount should not be zero
             if (invoiceMessage.amount.value != BigDecimal.ZERO) {
-                logger.info { "Inside my method : " }
-                listOfToUpdate.add(invoiceMessage)
+
+                listOfInvoiceToUpdate.add(invoiceMessage)
 
                 //Billing the consumer as per Invoice
-                BillingService(
+                var update: Boolean = BillingService(
                     paymentProvider = paymentProvider,
                     invoiceMessage,
                     invoiceService
                 ).consumerPaymentCharge()
+
+                //logger.info{"Update value $update"}
+
+                //Purging successfully charged invoices
+                if (update) {
+                    message.jmsExpiration = 60000 //1 hour
+                } else {
+                    //keep the unprocessed messages in the topic for surther analysis
+                }
             }
-            logger.info { "Final output: $listOfToUpdate" };
+            logger.info { "Inside TopicListener: onMessage listOfInvoiceToUpdate = $listOfInvoiceToUpdate" }
         } catch (e: NumberFormatException) {
+            logger.error { "Inside TopicListener : Exception $e" }
             e.printStackTrace()
         } catch (e: JMSException) {
+            logger.error { "Inside TopicListener : Exception $e" }
             e.printStackTrace()
         }
     }

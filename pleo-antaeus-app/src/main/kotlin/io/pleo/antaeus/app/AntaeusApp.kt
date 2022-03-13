@@ -35,21 +35,18 @@ fun main() = runBlocking {
 
     val dbFile: File = File.createTempFile("antaeus-db", ".sqlite")
     // Connect to the database and create the needed tables. Drop any existing data.
-    val db = Database
-        .connect(url = "jdbc:sqlite:${dbFile.absolutePath}",
-            driver = "org.sqlite.JDBC",
-            user = "root",
-            password = "")
-        .also {
-            TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
-            transaction(it) {
-                addLogger(StdOutSqlLogger)
-                // Drop all existing tables to ensure a clean slate on each run
-                SchemaUtils.drop(*tables)
-                // Create all tables
-                SchemaUtils.create(*tables)
-            }
+    val db = Database.connect(
+        url = "jdbc:sqlite:${dbFile.absolutePath}", driver = "org.sqlite.JDBC", user = "root", password = ""
+    ).also {
+        TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
+        transaction(it) {
+            addLogger(StdOutSqlLogger)
+            // Drop all existing tables to ensure a clean slate on each run
+            SchemaUtils.drop(*tables)
+            // Create all tables
+            SchemaUtils.create(*tables)
         }
+    }
 
     // Set up data access layer.
     val dal = AntaeusDal(db = db)
@@ -64,18 +61,22 @@ fun main() = runBlocking {
     val invoiceService = InvoiceService(dal = dal)
     val customerService = CustomerService(dal = dal)
 
-    //Adding Kotlin Coroutine and implementing the kotlin scheduler at 1st of every month
-    val job = launch{
-      //Testing purpose every 2mins
-        doInfinity("* /2 * * *") {
+    //Adding Kotlin Coroutine and implementing the kotlin scheduler at 1st of every month for pub/sub model
+    val job = launch {
+        //Testing purpose every 1mins - "* /1 * * *"
+        //Cron job schedules for every hour on the first of every month
+        doInfinity("0 0 * 1 *") {
             activeMQPublisher(invoiceService = invoiceService)
             activeMQSubscriber(paymentProvider = paymentProvider, invoiceService = invoiceService)
         }
     }
 
+    //the Coroutine job can be explored in depending on the logic required
+    //Example : Job has been cancelled or it can be resumed as well
+    //job.cancel()
+
     // Create REST web service
     AntaeusRest(
-        invoiceService = invoiceService,
-        customerService = customerService
+        invoiceService = invoiceService, customerService = customerService
     ).run()
 }
