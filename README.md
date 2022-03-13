@@ -22,17 +22,15 @@ syntax in scheduling of some Kotlin Coroutines tasks to do from time to time.
 
 3. Once the messages are dequeued from the consumer , it is sent to a billing service -> Where it is charged based on the invoice and updated to PAID status in database.
 
-4. Once invoice is charged, those messages can be purged with timetolive value(available in activeMQ), right now I am purging every hour the messages
+4. Once invoice is charged, those messages can be purged with timetolive value(available in activeMQ), right now I am purging every hour for the messages
 that has been updated.
 
-5. In the case of failover scenario for producer, where it becomes unavailable, the subscriber is will be online and looks for the TOPIC to get active again.
+5. In the case of failover scenario for producer, where it becomes unavailable, the subscriber will be online and looks for the TOPIC to get active again.
 Once the producer topic comes up, it fetches invoices from the database only if there is any PENDING status.
 
-6. In case of failover scenario for consumer, the consumer goes offline. Now the producer topic which has new messages enqueued hold a copy of these messages for the offline subscriber
-using its unique client ID. Once the subscriber service comes up, the producer pushes the messages to the subscriber thereby no messages are lost.
+6. In case of failover scenario for consumer, the consumer goes offline. Now the producer topic which has new messages enqueued hold a copy of these messages for the offline subscriber using its unique client ID. Once the subscriber service comes up, the producer pushes the messages to the subscriber thereby no messages are lost.
 
-7. The coroutine scope is still active (until asked to get closed) and light threaded which does not interact with the main activities of the application, making it easy to do scheduling
-without compromising on the application performances.
+7. The coroutine scope is still active (until asked to get closed) and light threaded which does not interact with the main activities of the application, making it easy to do scheduling without compromising on the application performances.
 
 ## Libraries :
 
