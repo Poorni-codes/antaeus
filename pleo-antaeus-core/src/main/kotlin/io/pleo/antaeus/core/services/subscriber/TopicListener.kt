@@ -1,5 +1,8 @@
 package io.pleo.antaeus.core.services.subscriber
 
+import io.pleo.antaeus.core.exceptions.CurrencyMismatchException
+import io.pleo.antaeus.core.exceptions.CustomerNotFoundException
+import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.core.services.BillingService
 import io.pleo.antaeus.core.services.InvoiceService
@@ -16,6 +19,7 @@ class TopicListener(private val paymentProvider: PaymentProvider, val invoiceSer
 
     private val logger = KotlinLogging.logger {}
     var listOfInvoiceToUpdate: MutableList<Invoice> = mutableListOf<Invoice>()
+    var update: Boolean = false;
 
     override fun onMessage(message: Message?) {
         try {
@@ -25,23 +29,32 @@ class TopicListener(private val paymentProvider: PaymentProvider, val invoiceSer
 
             //Checking the amount should not be zero
             if (invoiceMessage.amount.value != BigDecimal.ZERO) {
-
                 listOfInvoiceToUpdate.add(invoiceMessage)
 
-                //Billing the consumer as per Invoice
-                var update: Boolean = BillingService(
-                    paymentProvider = paymentProvider,
-                    invoiceMessage,
-                    invoiceService
-                ).consumerPaymentCharge()
-
-                //logger.info{"Update value $update"}
+                try {
+                    //Billing the consumer as per Invoice
+                    update = BillingService(
+                        paymentProvider = paymentProvider,
+                        invoiceMessage,
+                        invoiceService
+                    ).consumerPaymentCharge()
+                    //logger.info{"Update value $update"}
+                } catch (e: CurrencyMismatchException) {
+                    logger.error { "Inside TopicListener : consumerPaymentCharge : Exception $e" }
+                    e.printStackTrace()
+                } catch (e: CustomerNotFoundException) {
+                    logger.error { "Inside TopicListener : consumerPaymentCharge : Exception $e" }
+                    e.printStackTrace()
+                } catch (e: NetworkException) {
+                    logger.error { "Inside TopicListener : consumerPaymentCharge : Exception $e" }
+                    e.printStackTrace()
+                }
 
                 //Purging successfully charged invoices
                 if (update) {
                     message.jmsExpiration = 60000 //1 hour
                 } else {
-                    //keep the unprocessed messages in the topic for surther analysis
+                    //keep the unprocessed messages in the topic for further analysis logic
                 }
             }
             logger.info { "Inside TopicListener: onMessage listOfInvoiceToUpdate = $listOfInvoiceToUpdate" }
@@ -49,6 +62,9 @@ class TopicListener(private val paymentProvider: PaymentProvider, val invoiceSer
             logger.error { "Inside TopicListener : Exception $e" }
             e.printStackTrace()
         } catch (e: JMSException) {
+            logger.error { "Inside TopicListener : Exception $e" }
+            e.printStackTrace()
+        } catch (e: Exception) {
             logger.error { "Inside TopicListener : Exception $e" }
             e.printStackTrace()
         }

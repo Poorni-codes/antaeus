@@ -1,5 +1,6 @@
 package io.pleo.antaeus.core.services.subscriber
 
+import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.core.services.Constants.CLIENT_ID
 import io.pleo.antaeus.core.services.Constants.CONSUMER_TOPIC_NAME
@@ -39,8 +40,11 @@ suspend fun activeMQSubscriber(paymentProvider: PaymentProvider, invoiceService:
 
         subConnection.close()
 
+    } catch (e: NetworkException) {
+        logger.error { "Inside activeMQSubscriber : Exception $e" }
+        e.printStackTrace()
     } catch (e: Exception) {
-        logger.error { "Inside activeMQPublisher : Exception $e" }
+        logger.error { "Inside activeMQSubscriber : Exception $e" }
         e.printStackTrace()
     }
 }
