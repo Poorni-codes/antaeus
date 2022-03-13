@@ -15,7 +15,9 @@ syntax in scheduling of some Kotlin Coroutines tasks to do from time to time.
 
 2. Inside the given scope there are 2 coroutine tasks as given below:
     I am establishing a PUB/SUB model as below
+    
     a. activeMQPublisher  -> uses activeMQ connection factory to establish a publisher TOPIC where all the pending Invoices are sent
+    
     b. activeMQSubscriber -> uses a DURABLE SUBSCRIBER TOPIC, which listens to published messages from the producer topic asynchronously 
 
 3. Once the messages are dequeued from the consumer , it is sent to a billing service -> Where it is charged based on the invoice and updated to PAID status in database.
